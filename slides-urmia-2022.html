@@ -1,0 +1,4023 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>A Hands-on Tutorial of ggplot2 Package in R</title>
+    <meta charset="utf-8" />
+    <script src="libs/header-attrs-2.14/header-attrs.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# A Hands-on Tutorial of ggplot2 Package in R
+]
+.subtitle[
+## R-Ladies Urmia / June 30, 2022
+]
+
+---
+
+
+
+
+
+
+
+## Welcome!
+
+This tutorial will demonstrate how to create basic figures in R
+
+To follow along with the workshop in R, you will need to have **already installed** R and R Studio
+
+---
+
+## How to follow along and participate
+
+* Open R Studio
+
+* Install `tidyverse`, `gghalves`, and `haven` if you do not have them already
+
+* Open the `r-ladies-urmia.Proj` file and navigate to the files tab in the lower right pane in R Studio
+
+* Open the R Markdown file `r-ladies-urmia-data-viz-2022.Rmd` and click on the **tiny** green arrow on the top right corner of the gray shaded area (this is a code chunk!) that contains this: 
+
+
+```r
+library(package = "tidyverse")
+library(package = "haven")
+library(package = "gghalves")
+```
+
+* The arrow will run all the code in that "chunk" of code
+
+---
+
+## The data set
+
+* We will be using the **Global Attitudes &amp; Trends** data set from the **Pew Internet &amp; American Life** website 
+
+    + If needed, download the data and documentation from this website: &lt;a href = "https://www.pewresearch.org/global/datasets/"&gt;https://www.pewresearch.org/global/datasets/&lt;/a&gt;
+    
+---
+
+## Importing data into R
+
+* Before running this code, make sure the participant file and the data file are saved in the same folder on your computer that contains the file called `r-ladies-urmia.Rproj` (this will all be together as long as you downloaded and saved from GitHub)
+
+* Use the little green arrow at the top of the code chunk to run this code
+
+
+
+
+```r
+# use read_spss function to read the spss file 
+globalData2019 &lt;- read_spss(file = "Pew Research Center Global Attitudes Spring 2019 Dataset WEB.sav")
+```
+
+---
+
+## Data cleaning 
+
+* Run the next code chunk (`chunk3`), which uses `tidyverse` to clean the data set so it is ready to visualize
+
+
+```r
+globalData2019clean &lt;- globalData2019 %&gt;%
+  filter(country %in% c(13, 17, 30, 32)) %&gt;% 
+  select(country, SEX, AGE, BETTER_GENDER, COUNTRY_SATIS, 
+         ECON_SIT, LADDER_NOW) %&gt;% 
+  zap_labels() %&gt;%
+  mutate(AGE = na_if(AGE, 98)) %&gt;% 
+  mutate(AGE = na_if(AGE, 99)) %&gt;% 
+  mutate(LADDER_NOW = na_if(LADDER_NOW, 98)) %&gt;% 
+  mutate(LADDER_NOW = na_if(LADDER_NOW, 99)) %&gt;% 
+  mutate(country = recode_factor(country,
+                             '13' = 'Israel',
+                             '17' = 'Lebanon',
+                             '30' = 'Tunisia',
+                             '32' = 'Ukraine')) %&gt;%
+  mutate(SEX = recode_factor(SEX,
+                             '1' = 'Male',
+                             '2' = 'Female')) %&gt;% 
+  mutate(BETTER_GENDER = recode_factor(BETTER_GENDER,
+                                    '1' = 'Men',
+                                    '2' = 'Women',
+                                    '3' = 'Same/both equally',
+                                    '8' = NA_character_,
+                                    '9' = NA_character_)) %&gt;% 
+  mutate(COUNTRY_SATIS = recode_factor(COUNTRY_SATIS,
+                                       '1' = 'Satisfied',
+                                       '2' = 'Dissatisfied',
+                                       '8' = NA_character_,
+                                       '9' = NA_character_)) %&gt;% 
+  mutate(ECON_SIT = recode_factor(ECON_SIT,
+                                  '1' = 'Very good',
+                                  '2' = 'Somewhat good',
+                                  '3' = 'Somewhat bad',
+                                  '4' = 'Very bad',
+                                  '8' = NA_character_,
+                                  '9' = NA_character_)) 
+```
+
+---
+
+## Check your work
+
+
+```r
+summary(object = globalData2019clean)
+```
+
+```
+##     country         SEX            AGE                 BETTER_GENDER 
+##  Israel : 974   Male  :1852   Min.   :18.0   Men              :1341  
+##  Lebanon: 993   Female:2206   1st Qu.:30.0   Women            : 770  
+##  Tunisia:1045                 Median :44.0   Same/both equally:1798  
+##  Ukraine:1046                 Mean   :45.6   NA's             : 149  
+##                               3rd Qu.:60.0                           
+##                               Max.   :94.0                           
+##                               NA's   :10                             
+##       COUNTRY_SATIS           ECON_SIT      LADDER_NOW    
+##  Satisfied   : 946   Very good    : 135   Min.   : 0.000  
+##  Dissatisfied:2971   Somewhat good: 857   1st Qu.: 4.000  
+##  NA's        : 141   Somewhat bad :1396   Median : 6.000  
+##                      Very bad     :1621   Mean   : 5.448  
+##                      NA's         :  49   3rd Qu.: 7.000  
+##                                           Max.   :10.000  
+##                                           NA's   :18
+```
+
+---
+
+## Using the ggplot2 package for plotting
+
+* Part of the `tidyverse` set of packages in R
+
+* `gg` stands for **grammar** of **graphics**
+
+* Plots created in `ggplot2` are built in layers 
+
+* Let's look at some examples
+
+* First, a bar chart...
+
+---
+
+count: false
+ 
+## Basic bar chart
+.panel1-my_bar-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-my_bar-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Basic bar chart
+.panel1-my_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = SEX))
+```
+]
+ 
+.panel2-my_bar-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Basic bar chart
+.panel1-my_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX)) +
+* geom_bar()
+```
+]
+ 
+.panel2-my_bar-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-my_bar-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-my_bar-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-my_bar-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Fancy bar chart
+.panel1-my_bar_fancy-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-my_bar_fancy-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Fancy bar chart
+.panel1-my_bar_fancy-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = SEX))
+```
+]
+ 
+.panel2-my_bar_fancy-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy bar chart
+.panel1-my_bar_fancy-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX)) +
+* geom_bar(fill = "deeppink")
+```
+]
+ 
+.panel2-my_bar_fancy-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy bar chart
+.panel1-my_bar_fancy-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX)) +
+  geom_bar(fill = "deeppink") +
+* labs(x = "Sex",
+*      y = "Frequency",
+*      title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-my_bar_fancy-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy bar chart
+.panel1-my_bar_fancy-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX)) +
+  geom_bar(fill = "deeppink") +
+  labs(x = "Sex",
+       y = "Frequency",
+       title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* theme_minimal()
+```
+]
+ 
+.panel2-my_bar_fancy-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-my_bar_fancy-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-my_bar_fancy-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-my_bar_fancy-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Fancy bar chart with colors
+.panel1-my_bar_fancy_colors-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-my_bar_fancy_colors-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Fancy bar chart with colors
+.panel1-my_bar_fancy_colors-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = SEX, fill = SEX))
+```
+]
+ 
+.panel2-my_bar_fancy_colors-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_colors_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy bar chart with colors
+.panel1-my_bar_fancy_colors-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+* geom_bar()
+```
+]
+ 
+.panel2-my_bar_fancy_colors-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_colors_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy bar chart with colors
+.panel1-my_bar_fancy_colors-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+  geom_bar() +
+* labs(x = "Sex",
+*      y = "Frequency",
+*      title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-my_bar_fancy_colors-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_colors_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy bar chart with colors
+.panel1-my_bar_fancy_colors-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+  geom_bar() +
+  labs(x = "Sex",
+       y = "Frequency",
+       title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_fill_brewer(palette = "Set1")
+```
+]
+ 
+.panel2-my_bar_fancy_colors-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_colors_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy bar chart with colors
+.panel1-my_bar_fancy_colors-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+  geom_bar() +
+  labs(x = "Sex",
+       y = "Frequency",
+       title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Set1") +
+* theme_minimal(base_size = 14)
+```
+]
+ 
+.panel2-my_bar_fancy_colors-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_colors_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-my_bar_fancy_colors-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-my_bar_fancy_colors-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-my_bar_fancy_colors-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Super fancy bar chart
+.panel1-my_bar_fancy_legend-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-my_bar_fancy_legend-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Super fancy bar chart
+.panel1-my_bar_fancy_legend-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = SEX, fill = SEX))
+```
+]
+ 
+.panel2-my_bar_fancy_legend-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_legend_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Super fancy bar chart
+.panel1-my_bar_fancy_legend-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+* geom_bar()
+```
+]
+ 
+.panel2-my_bar_fancy_legend-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_legend_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Super fancy bar chart
+.panel1-my_bar_fancy_legend-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+  geom_bar() +
+* labs(x = "Sex",
+*      y = "Frequency",
+*      title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-my_bar_fancy_legend-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_legend_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Super fancy bar chart
+.panel1-my_bar_fancy_legend-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+  geom_bar() +
+  labs(x = "Sex",
+       y = "Frequency",
+       title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_fill_brewer(palette = "Set1")
+```
+]
+ 
+.panel2-my_bar_fancy_legend-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_legend_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Super fancy bar chart
+.panel1-my_bar_fancy_legend-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+  geom_bar() +
+  labs(x = "Sex",
+       y = "Frequency",
+       title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Set1") +
+* theme_minimal(base_size = 14, base_family = "serif")
+```
+]
+ 
+.panel2-my_bar_fancy_legend-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_legend_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Super fancy bar chart
+.panel1-my_bar_fancy_legend-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, fill = SEX)) +
+  geom_bar() +
+  labs(x = "Sex",
+       y = "Frequency",
+       title = "Sex of 4058 participants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Set1") +
+  theme_minimal(base_size = 14, base_family = "serif") +
+* theme(legend.position = "none")
+```
+]
+ 
+.panel2-my_bar_fancy_legend-auto[
+![](slides-urmia-2022_files/figure-html/my_bar_fancy_legend_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-my_bar_fancy_legend-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-my_bar_fancy_legend-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-my_bar_fancy_legend-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+## You try it!
+
+Make a bar chart of the `BETTER_GENDER` responses from survey participants.
+
+Edit the code below to: 
+
+* Use `BETTER_GENDER` as the fill variable in the `ggplot()` layer
+
+* Change the color of the bars by replacing "Set2" with the name of another palette (hint: palette names can be found by using the Help tab and entering scale_fill_brewer)
+
+* Add labels for the axes and a title inside the quote marks (see codebook for more about the question)
+
+* Replace `theme_minimal()` with another theme, you can find them by typing `theme_` into the Help tab
+
+* Play with the `base_size = ` by trying different numbers
+
+When you have completed the changes, click the little green arrow on the top right of the code chunk to run the code.
+
+---
+
+count: false
+ 
+## You try it example
+.panel1-you-try-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-you-try-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## You try it example
+.panel1-you-try-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER))
+```
+]
+ 
+.panel2-you-try-auto[
+![](slides-urmia-2022_files/figure-html/you-try_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## You try it example
+.panel1-you-try-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER)) +
+* geom_bar()
+```
+]
+ 
+.panel2-you-try-auto[
+![](slides-urmia-2022_files/figure-html/you-try_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## You try it example
+.panel1-you-try-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER)) +
+  geom_bar() +
+* labs(x = "Who has better life",
+*      y = "Frequency",
+*      title = "Who has a better life by sex according to 4058\nparticipants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-you-try-auto[
+![](slides-urmia-2022_files/figure-html/you-try_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## You try it example
+.panel1-you-try-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER)) +
+  geom_bar() +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058\nparticipants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-you-try-auto[
+![](slides-urmia-2022_files/figure-html/you-try_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## You try it example
+.panel1-you-try-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER)) +
+  geom_bar() +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058\nparticipants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Paired") +
+* theme_bw(base_size = 16, base_family = "serif")
+```
+]
+ 
+.panel2-you-try-auto[
+![](slides-urmia-2022_files/figure-html/you-try_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## You try it example
+.panel1-you-try-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER)) +
+  geom_bar() +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058\nparticipants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_bw(base_size = 16, base_family = "serif") +
+* theme(legend.position = "none")
+```
+]
+ 
+.panel2-you-try-auto[
+![](slides-urmia-2022_files/figure-html/you-try_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-you-try-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-you-try-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-you-try-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## You try it example
+.panel1-you-try2-rotate[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER)) +
+  geom_bar() +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_fill_brewer(palette = "Set1") +
+  theme_bw(base_size = 12, base_family = "mono") +
+  theme(legend.position = "none")
+```
+]
+ 
+.panel2-you-try2-rotate[
+![](slides-urmia-2022_files/figure-html/you-try2_rotate_01_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## You try it example
+.panel1-you-try2-rotate[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = BETTER_GENDER)) +
+  geom_bar() +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_fill_brewer(palette = "Set1", na.value = "orange") +
+  theme_bw(base_size = 12, base_family = "mono") +
+  theme(legend.position = "none")
+```
+]
+ 
+.panel2-you-try2-rotate[
+![](slides-urmia-2022_files/figure-html/you-try2_rotate_02_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-you-try2-rotate {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-you-try2-rotate {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-you-try2-rotate {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+---
+
+count: false
+ 
+## Stacked bar plot
+.panel1-stacked_bar-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-stacked_bar-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Stacked bar plot
+.panel1-stacked_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+* drop_na(BETTER_GENDER)
+```
+]
+ 
+.panel2-stacked_bar-auto[
+
+```
+## # A tibble: 3,909 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 3,899 more rows
+```
+]
+
+---
+count: false
+ 
+## Stacked bar plot
+.panel1-stacked_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+* ggplot(aes(x = BETTER_GENDER, fill = SEX))
+```
+]
+ 
+.panel2-stacked_bar-auto[
+![](slides-urmia-2022_files/figure-html/stacked_bar_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Stacked bar plot
+.panel1-stacked_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+* geom_bar()
+```
+]
+ 
+.panel2-stacked_bar-auto[
+![](slides-urmia-2022_files/figure-html/stacked_bar_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Stacked bar plot
+.panel1-stacked_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+  geom_bar() +
+* labs(x = "Who has better life",
+*      y = "Frequency",
+*      title = "Who has a better life by sex according to 4058\nparticipants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-stacked_bar-auto[
+![](slides-urmia-2022_files/figure-html/stacked_bar_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Stacked bar plot
+.panel1-stacked_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+  geom_bar() +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058\nparticipants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-stacked_bar-auto[
+![](slides-urmia-2022_files/figure-html/stacked_bar_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Stacked bar plot
+.panel1-stacked_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+  geom_bar() +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058\nparticipants in a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Paired") +
+* theme_minimal(base_size = 12, base_family = "mono")
+```
+]
+ 
+.panel2-stacked_bar-auto[
+![](slides-urmia-2022_files/figure-html/stacked_bar_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-stacked_bar-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-stacked_bar-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-stacked_bar-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+
+---
+
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-grouped_bar-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+* drop_na(BETTER_GENDER)
+```
+]
+ 
+.panel2-grouped_bar-auto[
+
+```
+## # A tibble: 3,909 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 3,899 more rows
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+* ggplot(aes(x = BETTER_GENDER, fill = SEX))
+```
+]
+ 
+.panel2-grouped_bar-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+* geom_bar(position = "dodge")
+```
+]
+ 
+.panel2-grouped_bar-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+  geom_bar(position = "dodge") +
+* labs(x = "Who has better life",
+*      y = "Frequency",
+*      title = "Who has a better life by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+*      fill = "Survey participant sex")
+```
+]
+ 
+.panel2-grouped_bar-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       fill = "Survey participant sex") +
+* scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouped_bar-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar-auto[
+
+```r
+globalData2019clean %&gt;%
+  drop_na(BETTER_GENDER) %&gt;%
+  ggplot(aes(x = BETTER_GENDER, fill = SEX)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Who has better life",
+       y = "Frequency",
+       title = "Who has a better life by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       fill = "Survey participant sex") +
+  scale_fill_brewer(palette = "Paired") +
+* theme_minimal(base_size = 12, base_family = "serif")
+```
+]
+ 
+.panel2-grouped_bar-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-grouped_bar-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-grouped_bar-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-grouped_bar-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+## You try it!
+
+* Create a grouped bar plot for Figure 2 with `COUNTRY_SATIS` as the x-axis and `SEX` as the fill color 
+
+* Drop the `NA` values for `COUNTRY_SATIS`
+
+* Add good labels for the x-axis, y-axis, title (may need the codebook for this)
+
+* Format it using a palette you like  
+
+* Fix the legend title so it is "Participant sex"
+
+
+```r
+# Figure 2 code goes here
+```
+
+
+---
+
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+*globalData2019clean
+```
+]
+ 
+.panel2-answerYti-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+globalData2019clean %&gt;%
+* drop_na(COUNTRY_SATIS)
+```
+]
+ 
+.panel2-answerYti-auto[
+
+```
+## # A tibble: 3,917 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  3 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  4 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  5 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  6 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  7 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  8 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+##  9 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## 10 Israel  Male      19 Women             Satisfied     Somewhat good          9
+## # … with 3,907 more rows
+```
+]
+
+---
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+globalData2019clean %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+* ggplot(aes(x = COUNTRY_SATIS, fill = SEX))
+```
+]
+ 
+.panel2-answerYti-auto[
+![](slides-urmia-2022_files/figure-html/answerYti_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+globalData2019clean %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, fill = SEX)) +
+* geom_bar(position = "dodge")
+```
+]
+ 
+.panel2-answerYti-auto[
+![](slides-urmia-2022_files/figure-html/answerYti_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+globalData2019clean %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, fill = SEX)) +
+  geom_bar(position = "dodge") +
+* labs(x = "Satisfied or dissatisfied with the way things\nare going in our country ",
+*      y = "Frequency",
+*      title = "Country satisfaction by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+*      fill = "Participant sex")
+```
+]
+ 
+.panel2-answerYti-auto[
+![](slides-urmia-2022_files/figure-html/answerYti_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+globalData2019clean %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, fill = SEX)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Satisfied or dissatisfied with the way things\nare going in our country ",
+       y = "Frequency",
+       title = "Country satisfaction by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       fill = "Participant sex") +
+* scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-answerYti-auto[
+![](slides-urmia-2022_files/figure-html/answerYti_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+globalData2019clean %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, fill = SEX)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Satisfied or dissatisfied with the way things\nare going in our country ",
+       y = "Frequency",
+       title = "Country satisfaction by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       fill = "Participant sex") +
+  scale_fill_brewer(palette = "Paired") +
+* theme_minimal()
+```
+]
+ 
+.panel2-answerYti-auto[
+![](slides-urmia-2022_files/figure-html/answerYti_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Answer to You try it!
+.panel1-answerYti-auto[
+
+```r
+# Figure 2 code goes here
+globalData2019clean %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, fill = SEX)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Satisfied or dissatisfied with the way things\nare going in our country ",
+       y = "Frequency",
+       title = "Country satisfaction by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       fill = "Participant sex") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_minimal()
+```
+]
+ 
+.panel2-answerYti-auto[
+![](slides-urmia-2022_files/figure-html/answerYti_auto_08_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-answerYti-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-answerYti-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-answerYti-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+
+---
+
+&lt;img src="graphics/onemillionrulesggplot.png" width="600" style="display: block; margin: auto;" /&gt;
+
+---
+
+count: false
+ 
+## Group percentages
+.panel1-percents-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-percents-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Group percentages
+.panel1-percents-auto[
+
+```r
+globalData2019clean %&gt;%
+* group_by(COUNTRY_SATIS, SEX)
+```
+]
+ 
+.panel2-percents-auto[
+
+```
+## # A tibble: 4,058 × 7
+## # Groups:   COUNTRY_SATIS, SEX [6]
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Group percentages
+.panel1-percents-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+* count()
+```
+]
+ 
+.panel2-percents-auto[
+
+```
+## # A tibble: 6 × 3
+## # Groups:   COUNTRY_SATIS, SEX [6]
+##   COUNTRY_SATIS SEX        n
+##   &lt;fct&gt;         &lt;fct&gt;  &lt;int&gt;
+## 1 Satisfied     Male     447
+## 2 Satisfied     Female   499
+## 3 Dissatisfied  Male    1353
+## 4 Dissatisfied  Female  1618
+## 5 &lt;NA&gt;          Male      52
+## 6 &lt;NA&gt;          Female    89
+```
+]
+
+---
+count: false
+ 
+## Group percentages
+.panel1-percents-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+* group_by(COUNTRY_SATIS)
+```
+]
+ 
+.panel2-percents-auto[
+
+```
+## # A tibble: 6 × 3
+## # Groups:   COUNTRY_SATIS [3]
+##   COUNTRY_SATIS SEX        n
+##   &lt;fct&gt;         &lt;fct&gt;  &lt;int&gt;
+## 1 Satisfied     Male     447
+## 2 Satisfied     Female   499
+## 3 Dissatisfied  Male    1353
+## 4 Dissatisfied  Female  1618
+## 5 &lt;NA&gt;          Male      52
+## 6 &lt;NA&gt;          Female    89
+```
+]
+
+---
+count: false
+ 
+## Group percentages
+.panel1-percents-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+* mutate(perc = 100 * (n / sum(n)))
+```
+]
+ 
+.panel2-percents-auto[
+
+```
+## # A tibble: 6 × 4
+## # Groups:   COUNTRY_SATIS [3]
+##   COUNTRY_SATIS SEX        n  perc
+##   &lt;fct&gt;         &lt;fct&gt;  &lt;int&gt; &lt;dbl&gt;
+## 1 Satisfied     Male     447  47.3
+## 2 Satisfied     Female   499  52.7
+## 3 Dissatisfied  Male    1353  45.5
+## 4 Dissatisfied  Female  1618  54.5
+## 5 &lt;NA&gt;          Male      52  36.9
+## 6 &lt;NA&gt;          Female    89  63.1
+```
+]
+
+&lt;style&gt;
+.panel1-percents-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-percents-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-percents-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+* group_by(COUNTRY_SATIS, SEX)
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+
+```
+## # A tibble: 4,058 × 7
+## # Groups:   COUNTRY_SATIS, SEX [6]
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+* count()
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+
+```
+## # A tibble: 6 × 3
+## # Groups:   COUNTRY_SATIS, SEX [6]
+##   COUNTRY_SATIS SEX        n
+##   &lt;fct&gt;         &lt;fct&gt;  &lt;int&gt;
+## 1 Satisfied     Male     447
+## 2 Satisfied     Female   499
+## 3 Dissatisfied  Male    1353
+## 4 Dissatisfied  Female  1618
+## 5 &lt;NA&gt;          Male      52
+## 6 &lt;NA&gt;          Female    89
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+* group_by(COUNTRY_SATIS)
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+
+```
+## # A tibble: 6 × 3
+## # Groups:   COUNTRY_SATIS [3]
+##   COUNTRY_SATIS SEX        n
+##   &lt;fct&gt;         &lt;fct&gt;  &lt;int&gt;
+## 1 Satisfied     Male     447
+## 2 Satisfied     Female   499
+## 3 Dissatisfied  Male    1353
+## 4 Dissatisfied  Female  1618
+## 5 &lt;NA&gt;          Male      52
+## 6 &lt;NA&gt;          Female    89
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+* mutate(perc = 100 * (n / sum(n)))
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+
+```
+## # A tibble: 6 × 4
+## # Groups:   COUNTRY_SATIS [3]
+##   COUNTRY_SATIS SEX        n  perc
+##   &lt;fct&gt;         &lt;fct&gt;  &lt;int&gt; &lt;dbl&gt;
+## 1 Satisfied     Male     447  47.3
+## 2 Satisfied     Female   499  52.7
+## 3 Dissatisfied  Male    1353  45.5
+## 4 Dissatisfied  Female  1618  54.5
+## 5 &lt;NA&gt;          Male      52  36.9
+## 6 &lt;NA&gt;          Female    89  63.1
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+  mutate(perc = 100 * (n / sum(n))) %&gt;%
+* drop_na(COUNTRY_SATIS)
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+
+```
+## # A tibble: 4 × 4
+## # Groups:   COUNTRY_SATIS [2]
+##   COUNTRY_SATIS SEX        n  perc
+##   &lt;fct&gt;         &lt;fct&gt;  &lt;int&gt; &lt;dbl&gt;
+## 1 Satisfied     Male     447  47.3
+## 2 Satisfied     Female   499  52.7
+## 3 Dissatisfied  Male    1353  45.5
+## 4 Dissatisfied  Female  1618  54.5
+```
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+  mutate(perc = 100 * (n / sum(n))) %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+* ggplot(aes(x = COUNTRY_SATIS, y = perc, fill = SEX))
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_perc_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+  mutate(perc = 100 * (n / sum(n))) %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, y = perc, fill = SEX)) +
+* geom_col(position = "dodge")
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_perc_auto_08_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+  mutate(perc = 100 * (n / sum(n))) %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, y = perc, fill = SEX)) +
+  geom_col(position = "dodge") +
+* labs(x = "Satisfied or dissatisfied with the way things\nare going in our country ",
+*      y = "Percentage within satisfaction group",
+*      title = "Country satisfaction by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+*      fill = "Participant sex")
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_perc_auto_09_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+  mutate(perc = 100 * (n / sum(n))) %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, y = perc, fill = SEX)) +
+  geom_col(position = "dodge") +
+  labs(x = "Satisfied or dissatisfied with the way things\nare going in our country ",
+       y = "Percentage within satisfaction group",
+       title = "Country satisfaction by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       fill = "Participant sex") +
+* scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_perc_auto_10_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped bar plot
+.panel1-grouped_bar_perc-auto[
+
+```r
+globalData2019clean %&gt;%
+  group_by(COUNTRY_SATIS, SEX) %&gt;%
+  count() %&gt;%
+  group_by(COUNTRY_SATIS) %&gt;%
+  mutate(perc = 100 * (n / sum(n))) %&gt;%
+  drop_na(COUNTRY_SATIS) %&gt;%
+  ggplot(aes(x = COUNTRY_SATIS, y = perc, fill = SEX)) +
+  geom_col(position = "dodge") +
+  labs(x = "Satisfied or dissatisfied with the way things\nare going in our country ",
+       y = "Percentage within satisfaction group",
+       title = "Country satisfaction by sex according to 4058 participants\nin a 2019 survey of people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       fill = "Participant sex") +
+  scale_fill_brewer(palette = "Paired") +
+* theme_minimal()
+```
+]
+ 
+.panel2-grouped_bar_perc-auto[
+![](slides-urmia-2022_files/figure-html/grouped_bar_perc_auto_11_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-grouped_bar_perc-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-grouped_bar_perc-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-grouped_bar_perc-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Histogram
+.panel1-histogram-auto[
+
+```r
+# Histogram for age
+*globalData2019clean
+```
+]
+ 
+.panel2-histogram-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Histogram
+.panel1-histogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+* ggplot(aes(x = AGE))
+```
+]
+ 
+.panel2-histogram-auto[
+![](slides-urmia-2022_files/figure-html/histogram_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Histogram
+.panel1-histogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+  ggplot(aes(x = AGE)) +
+* geom_histogram()
+```
+]
+ 
+.panel2-histogram-auto[
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](slides-urmia-2022_files/figure-html/histogram_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-histogram-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-histogram-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-histogram-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+*globalData2019clean
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+* ggplot(aes(x = AGE, fill = SEX))
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+![](slides-urmia-2022_files/figure-html/fancyhistogram_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+  ggplot(aes(x = AGE, fill = SEX)) +
+* geom_histogram(color = "white")
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](slides-urmia-2022_files/figure-html/fancyhistogram_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+  ggplot(aes(x = AGE, fill = SEX)) +
+  geom_histogram(color = "white") +
+* labs(x = "Participant age (years)",
+*      y = "Frequency",
+*      title = "Age distribution by sex for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](slides-urmia-2022_files/figure-html/fancyhistogram_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+  ggplot(aes(x = AGE, fill = SEX)) +
+  geom_histogram(color = "white") +
+  labs(x = "Participant age (years)",
+       y = "Frequency",
+       title = "Age distribution by sex for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_fill_brewer(palette = "Set1")
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](slides-urmia-2022_files/figure-html/fancyhistogram_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+  ggplot(aes(x = AGE, fill = SEX)) +
+  geom_histogram(color = "white") +
+  labs(x = "Participant age (years)",
+       y = "Frequency",
+       title = "Age distribution by sex for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Set1") +
+* facet_grid(rows = vars(SEX))
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](slides-urmia-2022_files/figure-html/fancyhistogram_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+  ggplot(aes(x = AGE, fill = SEX)) +
+  geom_histogram(color = "white") +
+  labs(x = "Participant age (years)",
+       y = "Frequency",
+       title = "Age distribution by sex for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Set1") +
+  facet_grid(rows = vars(SEX)) +
+* theme_minimal()
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](slides-urmia-2022_files/figure-html/fancyhistogram_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancy histogram
+.panel1-fancyhistogram-auto[
+
+```r
+# Histogram for age
+globalData2019clean %&gt;%
+  ggplot(aes(x = AGE, fill = SEX)) +
+  geom_histogram(color = "white") +
+  labs(x = "Participant age (years)",
+       y = "Frequency",
+       title = "Age distribution by sex for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_fill_brewer(palette = "Set1") +
+  facet_grid(rows = vars(SEX)) +
+  theme_minimal() +
+* theme(legend.position = "none")
+```
+]
+ 
+.panel2-fancyhistogram-auto[
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](slides-urmia-2022_files/figure-html/fancyhistogram_auto_08_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-fancyhistogram-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-fancyhistogram-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-fancyhistogram-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Box plot
+.panel1-boxplot-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-boxplot-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Box plot
+.panel1-boxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = SEX, y = AGE))
+```
+]
+ 
+.panel2-boxplot-auto[
+![](slides-urmia-2022_files/figure-html/boxplot_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Box plot
+.panel1-boxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE)) +
+* geom_boxplot()
+```
+]
+ 
+.panel2-boxplot-auto[
+![](slides-urmia-2022_files/figure-html/boxplot_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Box plot
+.panel1-boxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE)) +
+  geom_boxplot() +
+* labs(x = "Participant sex",
+*      y = "Age",
+*      title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-boxplot-auto[
+![](slides-urmia-2022_files/figure-html/boxplot_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Box plot
+.panel1-boxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE)) +
+  geom_boxplot() +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+* theme_minimal()
+```
+]
+ 
+.panel2-boxplot-auto[
+![](slides-urmia-2022_files/figure-html/boxplot_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-boxplot-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-boxplot-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-boxplot-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Fancier box plot
+.panel1-fancybox-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-fancybox-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Fancier box plot
+.panel1-fancybox-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = SEX, y = AGE, color = SEX))
+```
+]
+ 
+.panel2-fancybox-auto[
+![](slides-urmia-2022_files/figure-html/fancybox_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancier box plot
+.panel1-fancybox-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX)) +
+* geom_half_boxplot()
+```
+]
+ 
+.panel2-fancybox-auto[
+![](slides-urmia-2022_files/figure-html/fancybox_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancier box plot
+.panel1-fancybox-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX)) +
+  geom_half_boxplot() +
+* geom_half_point(alpha = .4)
+```
+]
+ 
+.panel2-fancybox-auto[
+![](slides-urmia-2022_files/figure-html/fancybox_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancier box plot
+.panel1-fancybox-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX)) +
+  geom_half_boxplot() +
+  geom_half_point(alpha = .4) +
+* labs(x = "Participant sex",
+*      y = "Age",
+*      title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-fancybox-auto[
+![](slides-urmia-2022_files/figure-html/fancybox_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancier box plot
+.panel1-fancybox-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX)) +
+  geom_half_boxplot() +
+  geom_half_point(alpha = .4) +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+* theme_minimal()
+```
+]
+ 
+.panel2-fancybox-auto[
+![](slides-urmia-2022_files/figure-html/fancybox_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Fancier box plot
+.panel1-fancybox-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX)) +
+  geom_half_boxplot() +
+  geom_half_point(alpha = .4) +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+  theme_minimal() +
+* theme(legend.position = "none")
+```
+]
+ 
+.panel2-fancybox-auto[
+![](slides-urmia-2022_files/figure-html/fancybox_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-fancybox-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-fancybox-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-fancybox-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+---
+
+count: false
+ 
+## Grouped box plot
+.panel1-groupboxplot-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-groupboxplot-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Grouped box plot
+.panel1-groupboxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(y = LADDER_NOW, x = country, color = SEX))
+```
+]
+ 
+.panel2-groupboxplot-auto[
+![](slides-urmia-2022_files/figure-html/groupboxplot_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped box plot
+.panel1-groupboxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, color = SEX)) +
+* geom_boxplot()
+```
+]
+ 
+.panel2-groupboxplot-auto[
+![](slides-urmia-2022_files/figure-html/groupboxplot_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped box plot
+.panel1-groupboxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, color = SEX)) +
+  geom_boxplot() +
+* labs(x = "Country",
+*      y = "Life ladder (0 = worst, 10 = best)",
+*      title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+*      color = "Sex")
+```
+]
+ 
+.panel2-groupboxplot-auto[
+![](slides-urmia-2022_files/figure-html/groupboxplot_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped box plot
+.panel1-groupboxplot-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, color = SEX)) +
+  geom_boxplot() +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex") +
+* theme_minimal()
+```
+]
+ 
+.panel2-groupboxplot-auto[
+![](slides-urmia-2022_files/figure-html/groupboxplot_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-groupboxplot-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-groupboxplot-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-groupboxplot-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-fancybox2-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX))
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+* geom_half_violin(side = "r")
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+* geom_half_point(alpha = .3, side = "l")
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+* labs(x = "Participant sex",
+*      y = "Age",
+*      title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.")
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+* scale_color_brewer(palette = "Dark2")
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_color_brewer(palette = "Dark2") +
+* scale_fill_brewer(palette = "Dark2")
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_color_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+* theme_minimal()
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_08_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_color_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  theme_minimal() +
+* coord_flip()
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_09_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_color_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  theme_minimal() +
+  coord_flip() +
+* theme(legend.position = "none")
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_10_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Rain cloud plot
+.panel1-fancybox2-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(x = SEX, y = AGE, color = SEX, fill = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Participant sex",
+       y = "Age",
+       title = "Age by sex for 4058 participants in a 2019 survey of people\nfrom Israel,\nLebanon, Tunisia, and Ukraine.") +
+  scale_color_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  theme_minimal() +
+  coord_flip() +
+  theme(legend.position = "none")
+```
+]
+ 
+.panel2-fancybox2-auto[
+![](slides-urmia-2022_files/figure-html/fancybox2_auto_11_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-fancybox2-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-fancybox2-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-fancybox2-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-grouprain-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX))
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+* geom_half_violin(side = "r")
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+  geom_half_violin(side = "r") +
+* geom_half_point(alpha = .3, side = "l")
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+* labs(x = "Country",
+*      y = "Life ladder (0 = worst, 10 = best)",
+*      title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+*      color = "Sex",
+*      fill = "Sex")
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+* theme_minimal()
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+* coord_flip()
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+  coord_flip() +
+* scale_color_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_08_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+  coord_flip() +
+  scale_color_brewer(palette = "Paired") +
+* scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_09_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot
+.panel1-grouprain-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, x = country, fill = SEX, color = SEX)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+  coord_flip() +
+  scale_color_brewer(palette = "Paired") +
+  scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouprain-auto[
+![](slides-urmia-2022_files/figure-html/grouprain_auto_10_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-grouprain-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-grouprain-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-grouprain-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+*globalData2019clean
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+
+```
+## # A tibble: 4,058 × 7
+##    country SEX      AGE BETTER_GENDER     COUNTRY_SATIS ECON_SIT      LADDER_NOW
+##    &lt;fct&gt;   &lt;fct&gt;  &lt;dbl&gt; &lt;fct&gt;             &lt;fct&gt;         &lt;fct&gt;              &lt;dbl&gt;
+##  1 Israel  Male      70 Same/both equally Dissatisfied  Somewhat good         10
+##  2 Israel  Female    58 Men               &lt;NA&gt;          Very good             10
+##  3 Israel  Female    53 Women             Dissatisfied  Somewhat good          8
+##  4 Israel  Female    38 Same/both equally Dissatisfied  Somewhat good          7
+##  5 Israel  Female    42 Men               Dissatisfied  Somewhat good          9
+##  6 Israel  Female    67 Same/both equally Dissatisfied  Somewhat good         10
+##  7 Israel  Female    78 Same/both equally Dissatisfied  Somewhat good          8
+##  8 Israel  Male      28 Same/both equally Dissatisfied  Somewhat bad           8
+##  9 Israel  Female    18 Same/both equally Satisfied     Somewhat good          9
+## 10 Israel  Female    37 Women             Dissatisfied  Somewhat good          7
+## # … with 4,048 more rows
+```
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+* ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX))
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_02_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+* facet_wrap(facets = vars(country))
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_03_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+* geom_half_violin(side = "r")
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_04_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+  geom_half_violin(side = "r") +
+* geom_half_point(alpha = .3, side = "l")
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_05_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+* labs(x = "Country",
+*      y = "Life ladder (0 = worst, 10 = best)",
+*      title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+*      color = "Sex",
+*      fill = "Sex")
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_06_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+* theme_minimal()
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_07_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+* coord_flip()
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_08_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+  coord_flip() +
+* scale_color_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_09_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+  coord_flip() +
+  scale_color_brewer(palette = "Paired") +
+* scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_10_output-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+ 
+## Grouped rain cloud plot with facets
+.panel1-grouprainfacet-auto[
+
+```r
+globalData2019clean %&gt;%
+  ggplot(aes(y = LADDER_NOW, fill = SEX, color = SEX)) +
+  facet_wrap(facets = vars(country)) +
+  geom_half_violin(side = "r") +
+  geom_half_point(alpha = .3, side = "l") +
+  labs(x = "Country",
+       y = "Life ladder (0 = worst, 10 = best)",
+       title = "Life ladder by sex and country for 4058 participants in a 2019 survey\nof people from Israel,\nLebanon, Tunisia, and Ukraine.",
+       color = "Sex",
+       fill = "Sex") +
+  theme_minimal() +
+  coord_flip() +
+  scale_color_brewer(palette = "Paired") +
+  scale_fill_brewer(palette = "Paired")
+```
+]
+ 
+.panel2-grouprainfacet-auto[
+![](slides-urmia-2022_files/figure-html/grouprainfacet_auto_11_output-1.png)&lt;!-- --&gt;
+]
+
+&lt;style&gt;
+.panel1-grouprainfacet-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel2-grouprainfacet-auto {
+  color: black;
+  width: 49%;
+  hight: 32%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+.panel3-grouprainfacet-auto {
+  color: black;
+  width: NA%;
+  hight: 33%;
+  float: left;
+  padding-left: 1%;
+  font-size: 80%
+}
+&lt;/style&gt;
+
+
+
+
+
+---
+
+## The final challenges...choose one or try them all!
+
+* Make a bar graph showing percentage of participants in each category of ECON_SIT 
+
+* Create a figure that shows grouped bar plots for GLOBAL_COMMUNITY grouped by country
+
+* Create a figure that shows grouped bar plots for country and COUNTRY_SATIS
+
+* Create a figure that shows grouped bar plots for COUNTRY_SATIS grouped by country and SEX
+
+* Create a figure that shows the distribution of AGE by country and SEX
+
+---
+
+## The end
+
+* Email me at **[harrisj@wustl.edu](mailto:harrisj@wustl.edu)**
+
+* Connect with me on Twitter **[@jenineharris](https://twitter.com/jenineharris)**
+
+&lt;!-- adjust font size in this css code chunk, currently 80 --&gt;
+
+&lt;style type="text/css"&gt;
+.remark-code{line-height: 1.5; font-size: 90%}
+
+@media print {
+  .has-continuation {
+    display: block;
+  }
+}
+
+code.r.hljs.remark-code{
+  position: relative;
+  overflow-x: hidden;
+}
+
+
+code.r.hljs.remark-code:hover{
+  overflow-x:visible;
+  width: 500px;
+  border-style: solid;
+}
+&lt;/style&gt;
+
+
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
